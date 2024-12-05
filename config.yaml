@@ -1,0 +1,54 @@
+api_keys:
+  LLM:
+    DeepSeek:
+      api_key: "sk-942b80e9010e40e6812b17b62a17bc42"
+      base_url: "https://api.deepseek.com"
+      model: "deepseek-chat"
+      news_url: "https://60s.viki.moe/60s?v2=1"
+  T2I:
+    SD:
+
+# Directory Settings
+output_dir: "./outputs"
+cache_dir: "./cache"
+
+# Local api address
+local_api_url: "your-linux-server-ip:5000"
+
+# Artistic Styles Presets
+styles:
+  photorealistic:
+    negative_prompt: "cartoon, anime, illustration, painting"
+    seed: 42
+    height: 768
+    width: 768
+
+  anime:
+    negative_prompt: "photorealistic, photograph, 3d rendering"
+    seed: 42
+    height: 768
+    width: 768
+
+  oil_painting:
+    negative_prompt: "photograph, digital art, sketch"
+    seed: 42
+    height: 768
+    width: 768
+
+  sketch:
+    negative_prompt: "color, painting, photograph"
+    seed: 42
+    height: 768
+    width: 768
+
+  cyberpunk:
+    negative_prompt: "natural, organic, traditional"
+    seed: 42
+    height: 768
+    width: 768
+
+  minimalist:
+    negative_prompt: "detailed, complex, cluttered"
+    seed: 42
+    height: 768
+    width: 768
