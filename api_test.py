@@ -1,8 +1,11 @@
-import requests
+import http.client
 import json
+import base64
 
 # Define the API endpoint
-api_url = "http://localhost:8000//generate"
+host = "127.0.0.1"
+port = 8000
+endpoint = "/generate"
 
 # Define the request payload
 payload = {
@@ -12,23 +15,28 @@ payload = {
     "style": {}
 }
 
-# Set the headers
+# Prepare headers
 headers = {
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
-    "Accept": "application/json",  # 让服务器知道我们期望 JSON 响应
-    "Origin": "http://localhost",  # 有时需要设置正确的 Origin
-    "Referer": "http://localhost",  # 根据需要设置
+    "Content-Type": "application/json"
 }
 
-# Make the POST request
-response = requests.post(api_url, headers=headers, json=payload)#data=json.dumps(payload))
+# Initialize connection
+conn = http.client.HTTPConnection(host, port)
 
-# Check the response
-if response.status_code == 200:
-    data = response.json()
-    print("Image generated successfully!")
-    # Save the base64 image to a file
-else:
-    print(f"Failed to generate image. Status code: {response.status_code}")
-    print(f"Error details: {response.text}")
+# Make the POST request
+try:
+    conn.request("POST", endpoint, body=json.dumps(payload), headers=headers)
+    response = conn.getresponse()
+
+    # Read the response
+    if response.status == 200:
+        data = json.loads(response.read().decode("utf-8"))
+        print("Image generated successfully!")
+        # Save the base64 image to a file
+        with open("generated_image.png", "wb") as f:
+            f.write(base64.b64decode(data["image_base64"]))
+    else:
+        print(f"Failed to generate image. Status code: {response.status}")
+        print(f"Error details: {response.read().decode('utf-8')}")
+finally:
+    conn.close()
