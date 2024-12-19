@@ -5,15 +5,24 @@ api_keys:
       base_url: "https://api.deepseek.com"
       model: "deepseek-chat"
       news_url: "https://60s.viki.moe/60s?v2=1"
-  T2I:
-    SD:
+
+  Text2Image:
+    StableDiffusion_Local:
+      type: "Local"
+      api_url: "127.0.0.1"
+      port: "8000"
+
+platform_settings:
+  xhs:
+    cookie: "a1=1909b9e9f3cu79rovd7qkimb1yjqa12pbo7sngbxd50000305265; webId=043d8d882b8ba79857eda1feb58df185; gid=yj8jDjd0J2DKyj8jDjdjilkDqS7WjFlhfWATWCf36DyvVM28A0yJUI888q82JK28Wfd88ydY; abRequestId=043d8d882b8ba79857eda1feb58df185; webBuild=4.47.1; customerClientId=704096959185051; access-token-open.xiaohongshu.com=customer.open.AT-68c517448110557363547331ut7yajzyfnvrcpxi; access-token-open.beta.xiaohongshu.com=customer.open.AT-68c517448110557363547331ut7yajzyfnvrcpxi; xsecappid=xhs-pc-web; web_session=040069b7fa7e5f2a08bf3c4c68354b3f1ca3d2; acw_tc=0a4a61c717341893559173406e38c8e3d6a3fb642dc85957375e0cd89cf807; websectiga=8886be45f388a1ee7bf611a69f3e174cae48f1ea02c0f8ec3256031b8be9c7ee; sec_poison_id=eefd64dc-8646-4e7e-968f-dd4571624d33; unread={%22ub%22:%22673aca560000000007035588%22%2C%22ue%22:%22674655aa000000000703ae89%22%2C%22uc%22:32}"
 
 # Directory Settings
 output_dir: "./outputs"
 cache_dir: "./cache"
 
-# Local api address
-local_api_url: "your-linux-server-ip:5000"
+news_url: "https://60s.viki.moe/60s?v2=1"
+LLM_choose: 'DeepSeek'
+T2I_choose: 'StableDiffusion_Local'
 
 # Artistic Styles Presets
 styles:
