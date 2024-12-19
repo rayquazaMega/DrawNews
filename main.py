@@ -1,22 +1,21 @@
-import json
-import torch
-import openai
+import base64
 import gc
-import os
-import logging
-import time
 import http.client
-from typing import List, Dict
+import json
+import os
 from dataclasses import dataclass
-from retry import retry
+from io import BytesIO
+from typing import Dict, List
+
+import openai
+import requests
 import yaml
 from PIL import Image
-import base64
-from io import BytesIO
-import requests
-
 from platform_backends.xhs_backends import sign, test_create_simple_note
+from retry import Retry
 from xhs import XhsClient
+from utils import logger
+
 
 # Configuration handling
 @dataclass
@@ -37,14 +36,6 @@ class Config:
         return cls(**config)
 
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-
 class NewsArtGenerator:
     def __init__(self, config_path: str):
         self.config = Config.from_yaml(config_path)
@@ -54,7 +45,7 @@ class NewsArtGenerator:
         os.makedirs(self.config.output_dir, exist_ok=True)
         os.makedirs(self.config.cache_dir, exist_ok=True)
 
-    @retry(tries=3, delay=2, logger=logger)
+    @Retry(max_tries=3, delay=2, logger=logger)
     def get_daily_news(self) -> List[str]:
         logger.info("Fetching daily news...")
         response = requests.get(self.config.news_url, timeout=10)
@@ -70,17 +61,17 @@ class NewsArtGenerator:
         )
 
         system_prompt = """
-        You are a professional Stable Diffusion prompt engineer specializing in:
-        1. Analyzing news content for visual elements
-        2. Creating detailed artistic prompts
-        3. Incorporating diverse artistic styles
-        4. Maintaining emotional impact
-        5. Please note that the news is taken from the China, if not specifically emphasize the characters from other countries, please indicate in the prompt that Chinese elements are drawn, such as Chinese teachers, Chinese elderly, etc
-        6. Avoid political symbols or figures in prompts
-        7. Prompting in standard and easy-to-understand English
-        
-        Output json Format: {"prompts": [{"text": prompt, "style": style_name}]}
-        """
+You are a professional Stable Diffusion prompt engineer specializing in:
+1. Analyzing news content for visual elements
+2. Creating detailed artistic prompts
+3. Incorporating diverse artistic styles
+4. Maintaining emotional impact
+5. Please note that the news is taken from the China, if not specifically emphasize the characters from other countries, please indicate in the prompt that Chinese elements are drawn, such as Chinese teachers, Chinese elderly, etc
+6. Avoid political symbols or figures in prompts
+7. Prompting in standard and easy-to-understand English
+
+Output json Format: {"prompts": [{"text": prompt, "style": style_name}]}
+        """.strip()
 
         response = client.chat.completions.create(
             model=self.config.api_keys['LLM'][self.config.LLM_choose]['model'],
@@ -100,11 +91,11 @@ class NewsArtGenerator:
         )
 
         system_prompt = """
-        你需要扮演一名专业的中文新闻撰稿人，介绍新闻中涉及的专业概念，注意只在概念比较晦涩时才介绍；最后，你需要使用中文详细评价每一条新闻报道的信息对社会生活、经济、民生的影响，特别注意越详细越好。你需要尽量像你扮演的角色，因此你需要保持文字的多样性，特别注意要避免出现相同句式。每一条新闻的评述写在各自对应的“comment”中。
-        最后你需要简短总结其中最有吸引力的新闻，填写在title中。title应该控制在10字以内。
+你需要扮演一名专业的中文新闻撰稿人，介绍新闻中涉及的专业概念，注意只在概念比较晦涩时才介绍；最后，你需要使用中文详细评价每一条新闻报道的信息对社会生活、经济、民生的影响，特别注意越详细越好。你需要尽量像你扮演的角色，因此你需要保持文字的多样性，特别注意要避免出现相同句式。每一条新闻的评述写在各自对应的“comment”中。
+最后你需要简短总结其中最有吸引力的新闻，填写在title中。title应该控制在10字以内。
 
-        Output json Format: {"title": title, "comments":[{"text": comment}, {"text": comment}, ...]}
-        """
+Output json Format: {"title": title, "comments":[{"text": comment}, {"text": comment}, ...]}
+        """.strip()
 
         response = client.chat.completions.create(
             model=self.config.api_keys['LLM'][self.config.LLM_choose]['model'],
@@ -154,6 +145,8 @@ class NewsArtGenerator:
                     response = conn.getresponse()
                     data = response.read().decode()
                     conn.close()
+                else:
+                    raise Exception("Invalid model type")
 
                 response_data = json.loads(data)
                 image_base64 = response_data['image_base64']
@@ -190,7 +183,12 @@ class NewsArtGenerator:
         try:
             cookie = self.config.platform_settings['xhs']['cookie']
             xhs_client = XhsClient(cookie, sign=sign)
-            response = test_create_simple_note(xhs_client, image_paths=image_paths, desc=news_captions, title=news_title)
+            response = test_create_simple_note(
+                xhs_client,
+                image_paths=image_paths,
+                desc=news_captions,
+                title=news_title
+            )
             return response
         except Exception as e:
             logger.error(f"Error pushing to xhs: {str(e)}")
@@ -205,7 +203,11 @@ class NewsArtGenerator:
             # print(dict(comments).get('title','今日新闻'))
             # print(comments)
             image_paths = self.generate_images(prompts, self.config.T2I_choose)
-            self.push_to_xhs(image_paths, '每日AI新闻速递：'+'\n'.join(news), '60s读懂世界：' + dict(comments).get('title','今日新闻'))
+            self.push_to_xhs(
+                image_paths,
+                '每日AI新闻速递：' + '\n'.join(news),
+                '60s读懂世界：' + dict(comments).get('title', '今日新闻')
+            )
 
             logger.info("Generation completed successfully")
         except Exception as e:
@@ -221,10 +223,12 @@ if __name__ == "__main__":
 
     generator = NewsArtGenerator(args.config)
 
-    import schedule
     import time
+
+    import schedule
+
     schedule.every().day.at("07:00").do(generator.run)
     while True:
         schedule.run_pending()
         time.sleep(1)
-    #generator.run()
+    # generator.run()

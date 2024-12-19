@@ -1,13 +1,12 @@
+import base64
+import gc
+import io
+
+import torch
+import uvicorn
+from diffusers import DiffusionPipeline
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import torch
-from diffusers import DiffusionPipeline
-import gc
-from typing import Dict
-from PIL import Image
-import io
-import base64
-import uvicorn
 
 app = FastAPI()
 
@@ -22,13 +21,16 @@ except Exception as e:
     print(f"Error loading model: {e}")
     pipe = None
 
+
 class GenerateRequest(BaseModel):
     prompt: str
     num_inference_steps: int = 50
     guidance_scale: float = 7.5
 
+
 class GenerateResponse(BaseModel):
     image_base64: str
+
 
 @app.post("/generate", response_model=GenerateResponse)
 def generate_image(request: GenerateRequest):
@@ -50,5 +52,6 @@ def generate_image(request: GenerateRequest):
 
     return GenerateResponse(image_base64=image_base64)
 
+
 if __name__ == "__main__":
-    uvicorn.run("script_name:app", host="0.0.0.0", port=8000, reload=True)  # Replace "script_name" with the actual filename without .py extension
+    uvicorn.run("script_name:app", host="0.0.0.0", port=8000, reload=True)

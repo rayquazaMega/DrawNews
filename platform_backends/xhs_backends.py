@@ -1,18 +1,20 @@
-import xhs
-from xhs import FeedType, IPBlockError, XhsClient
-from xhs.exception import SignError, DataFetchError
 import json
 from time import sleep
+
 from playwright.sync_api import sync_playwright
+from xhs import FeedType, IPBlockError, XhsClient
+
 
 def beauty_print(data: dict):
     print(json.dumps(data, ensure_ascii=False, indent=2))
+
 
 def test_create_simple_note(xhs_client: XhsClient, image_paths: list, title: str, desc: str):
     # title = "新闻测试页"
     # desc = "我是新闻我是新闻我是新闻"
     note = xhs_client.create_image_note(title, desc, image_paths, is_private=False, post_time="2023-07-25 23:59:59")
     beauty_print(note)
+
 
 def sign(uri, data=None, a1="", web_session=""):
     for _ in range(10):

@@ -1,0 +1,6 @@
+openai
+requests
+matplotlib
+arxiv
+xhs
+playwright  # playwright install
