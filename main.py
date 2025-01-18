@@ -116,6 +116,120 @@ class NewsArtGenerator:
         )
         return json.loads(response.choices[0].message.content)
 
+    def translate_to_eng_news(self, news_list: list) -> list:
+        """
+        针对同样的中国新闻，生成英文版的图像 Prompt。
+        """
+        logger.info("Generating prompts from news (English version)...")
+
+        client = openai.OpenAI(
+            api_key=self.config.api_keys['LLM'][self.config.LLM_choose]['api_key'],
+            base_url=self.config.api_keys['LLM'][self.config.LLM_choose]['base_url']
+        )
+
+        system_prompt = """
+        translate following News Headline to naive and brief english News Headline.
+        Output json Format: {"english translation": text,}
+        """
+        result_list = []
+        for news in news_list:
+            response = client.chat.completions.create(
+                model=self.config.api_keys['LLM'][self.config.LLM_choose]['model'],
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": news}
+                ],
+                temperature=0.7,
+                max_tokens=4095,
+                response_format={"type": "json_object"},
+            )
+            result_list.append(json.loads(response.choices[0].message.content)["english translation"])
+        return result_list
+
+    def translate_to_eng_prompt(self, news_text: str) -> Dict:
+        """
+        针对同样的中国新闻，生成英文版的图像 Prompt。
+        """
+        logger.info("Generating prompts from news (English version)...")
+
+        client = openai.OpenAI(
+            api_key=self.config.api_keys['LLM'][self.config.LLM_choose]['api_key'],
+            base_url=self.config.api_keys['LLM'][self.config.LLM_choose]['base_url']
+        )
+
+        system_prompt = """
+        You are a professional Stable Diffusion prompt engineer specializing in:
+        1. Analyzing Chinese news content for visual elements
+        2. Creating detailed artistic prompts in English
+        3. Incorporating diverse artistic styles and emotional impact
+        4. Unless otherwise specified, keep subjects with Chinese elements (e.g., Chinese students, Chinese environment, etc.)
+        5. Avoid political symbols or figures in your prompts
+        6. Prompt in natural, concise English
+
+        Output JSON Format:
+        {
+          "prompts": [
+            {
+              "text": "prompt",
+              "style": "style_name"
+            }
+          ]
+        }
+        """
+
+        response = client.chat.completions.create(
+            model=self.config.api_keys['LLM'][self.config.LLM_choose]['model'],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": news_text}
+            ],
+            temperature=0.7,
+            max_tokens=4095,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(response.choices[0].message.content)
+
+    def translate_to_eng_comment(self, news_text: str) -> Dict:
+        """
+        生成对中国新闻的英文评论，包括对社会、经济、民生等的详细评价，并生成一个短标题。
+        """
+        logger.info("Generating English comments from news...")
+
+        client = openai.OpenAI(
+            api_key=self.config.api_keys['LLM'][self.config.LLM_choose]['api_key'],
+            base_url=self.config.api_keys['LLM'][self.config.LLM_choose]['base_url']
+        )
+
+        system_prompt = """
+        You need to act as a professional English news commentator focusing on news from China.
+        1. Provide explanations of any difficult or specialized terms only if necessary.
+        2. Offer in-depth, detailed commentary on how each news item impacts society, economy, and daily life.
+        3. Write each piece of commentary in the corresponding "comment" field.
+        4. End with a short summary for the most appealing news item in the "title", limited to 10 words.
+
+        Output JSON Format:
+        {
+          "title": "title",
+          "comments": [
+            {"text": "comment"},
+            {"text": "comment"},
+            ...
+          ]
+        }
+        """
+
+        response = client.chat.completions.create(
+            model=self.config.api_keys['LLM'][self.config.LLM_choose]['model'],
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": news_text}
+            ],
+            temperature=0.7,
+            max_tokens=4095,
+            response_format={"type": "json_object"},
+        )
+        return json.loads(response.choices[0].message.content)
+
     def generate_images(self, prompts: Dict, model_name: str):
         logger.info(f"Generating images using model: {model_name}...")
         metadata = []
@@ -200,12 +314,16 @@ class NewsArtGenerator:
             news = self.get_daily_news()
             prompts = self.translate_to_prompt(','.join(news))
             comments = self.translate_to_comment(','.join(news))
-            # print(comments)
-            # print('每日AI新闻速递：'+','.join(news))
-            # print(dict(comments).get('title','今日新闻'))
-            # print(comments)
             image_paths = self.generate_images(prompts, self.config.T2I_choose)
             self.push_to_xhs(image_paths, '每日AI新闻速递：'+'\n'.join(news), '60s读懂世界：' + dict(comments).get('title','今日新闻'))
+
+            news = self.get_daily_news()
+            eng_news = self.translate_to_eng_news(news)
+            eng_prompts = self.translate_to_eng_prompt(','.join(news))
+            eng_comments = self.translate_to_eng_comment(','.join(news))
+            image_paths = self.generate_images(eng_prompts, self.config.T2I_choose)
+            self.push_to_xhs(image_paths, '[English Version] AI China Daily:\n' + '\n'.join(eng_news),
+                             '60-Second World Brief:' + dict(eng_comments).get('title', 'Daily News'))
 
             logger.info("Generation completed successfully")
         except Exception as e:
